@@ -11,7 +11,6 @@ DB = DATA_DIR / "autoescola.sqlite3"
 STATIC = ROOT / "static"
 HOST, PORT = os.environ.get("HOST", "0.0.0.0"), int(os.environ.get("PORT", "8000"))
 PRODUCTION = os.environ.get("APP_ENV") == "production"
-SETUP_KEY = os.environ.get("SETUP_KEY", "")
 SESSION_SECONDS = 60 * 60 * 12
 ROLES = {"admin": "Administrador", "gestor": "Gestor", "instrutor": "Instrutor"}
 SOURCE = "Inventário Nacional de Emissões Atmosféricas por Veículos Automotores Rodoviários, ano-base 2024, tabela de fatores de CO₂ (2004–2024). Estimativa de CO₂ direto da combustão."
@@ -85,7 +84,7 @@ class API(BaseHTTPRequestHandler):
         try:
             with connect() as c:
                 if p=="/api/status":
-                    return self.respond(200,{"setup_required":c.execute("SELECT COUNT(*) FROM users").fetchone()[0]==0,"setup_key_required":bool(SETUP_KEY)})
+                    return self.respond(200,{"setup_required":c.execute("SELECT COUNT(*) FROM users").fetchone()[0]==0})
                 if p=="/api/me":
                     u=self.current(); return self.respond(200,{"user":{k:u[k] for k in ("id","name","email","role")} if u else None,"csrf":u["csrf"] if u else None})
                 u=self.require()
@@ -114,7 +113,7 @@ class API(BaseHTTPRequestHandler):
             with connect() as c:
                 if p=="/api/setup" and method=="POST":
                     if c.execute("SELECT COUNT(*) FROM users").fetchone()[0]:return self.respond(409,{"error":"O administrador inicial já foi criado."})
-                    if SETUP_KEY and not hmac.compare_digest(str(d.get("setup_key","")), SETUP_KEY):return self.respond(403,{"error":"Código inicial incorreto. Peça o código ao responsável pela apresentação."})
+                    
                     self.validate_user(d,True); c.execute("INSERT INTO users(name,email,password_hash,role) VALUES(?,?,?,'admin')",(d["name"].strip(),d["email"].strip().lower(),password_hash(d["password"])))
                     # O login abre outra conexão; confirmar o usuário antes de consultá-lo.
                     c.commit()
